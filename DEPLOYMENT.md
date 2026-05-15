@@ -66,7 +66,7 @@ Gateway logs print `Cache Hit` and `Cache Miss` for `GET` requests. Use those lo
 Before deploying `frontend-app` as a static site, set the gateway base URL in `index.html`:
 
 ```js
-const API_BASE = window.API_BASE_URL || "http://YOUR_GATEWAY_PUBLIC_IP:3000";
+const API_BASE = window.API_BASE_URL || "https://hammerhead-app-fqp4n.ondigitalocean.app";
 ```
 
 After this, the frontend should not call JSON or SOAP services directly.
