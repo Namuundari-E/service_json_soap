@@ -151,8 +151,9 @@ async function proxy(req, res) {
 
   const targetUrl = new URL(route.path + incomingUrl.search, route.baseUrl);
   const cacheKey = `${req.method}:${incomingUrl.pathname}${incomingUrl.search}`;
+  const hasAuthorization = Boolean(req.headers.authorization);
 
-  if (req.method === "GET") {
+  if (req.method === "GET" && !hasAuthorization) {
     const cached = await getCached(cacheKey);
     if (cached) {
       console.log(`Cache Hit: ${cacheKey}`);
@@ -185,7 +186,7 @@ async function proxy(req, res) {
         const responseText = responseBody.toString("utf8");
         const responseHeaders = { ...proxyRes.headers, "x-cache": "MISS" };
 
-        if (req.method === "GET" && proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+        if (req.method === "GET" && !hasAuthorization && proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
           await setCached(cacheKey, responseText);
         }
 
