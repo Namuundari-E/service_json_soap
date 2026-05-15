@@ -1,7 +1,11 @@
 package com.example.profile.controller;
 
 import org.springframework.web.bind.annotation.*;
-import lombok.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.example.profile.model.Profile;
+import com.example.profile.repository.ProfileRepository;
+import com.example.profile.service.FileService;
 import java.util.*;
 
 @RestController
@@ -9,39 +13,83 @@ import java.util.*;
 @CrossOrigin // Frontend-өөс хандах боломж олгоно
 public class ProfileController {
     
-    private Map<String, Profile> db = new HashMap<>();
+    @Autowired
+    private ProfileRepository profileRepository;
+
+    @Autowired
+    private FileService fileService;
+
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Collections.singletonMap("status", "ok");
+    }
 
     @PostMapping
-    public String save(@RequestBody Profile profile) {
-        db.put("current", profile);
-        return "Profile updated!";
+    public Profile save(@RequestBody Profile profile) {
+        return profileRepository.save(profile);
     }
 
     @GetMapping("/me")
     public Profile get() {
-        return db.getOrDefault("current", new Profile("Default", "No bio", "000"));
+        return getOrCreateCurrentProfile();
     }
- // Update Profile
-    @PutMapping("/{id}")
-    public String update(@PathVariable String id, @RequestBody Profile profile) {
-        if(db.containsKey(id)) {
-            db.put(id, profile);
-            return "Profile updated successfully!";
+
+    @PutMapping("/me")
+    public Profile updateMe(@RequestBody Profile profileDetails) {
+        Profile profile = getOrCreateCurrentProfile();
+        profile.setName(profileDetails.getName());
+        profile.setBio(profileDetails.getBio());
+        profile.setPhone(profileDetails.getPhone());
+        if (profileDetails.getImageUrl() != null) {
+            profile.setImageUrl(profileDetails.getImageUrl());
         }
-        return "Profile not found!";
+        return profileRepository.save(profile);
+    }
+
+    @PutMapping("/{id}")
+    public Profile update(@PathVariable Long id, @RequestBody Profile profileDetails) {
+        return profileRepository.findById(id).map(profile -> {
+            profile.setName(profileDetails.getName());
+            profile.setBio(profileDetails.getBio());
+            profile.setPhone(profileDetails.getPhone());
+            if (profileDetails.getImageUrl() != null) {
+                profile.setImageUrl(profileDetails.getImageUrl());
+            }
+            return profileRepository.save(profile);
+        }).orElseThrow(() -> new RuntimeException("Profile not found!"));
     }
 
     // Delete Profile
     @DeleteMapping("/{id}")
-    public String delete(@PathVariable String id) {
-        db.remove(id);
+    public String delete(@PathVariable Long id) {
+        profileRepository.deleteById(id);
         return "Profile deleted!";
     }
-}
 
-@Data @AllArgsConstructor @NoArgsConstructor
-class Profile {
-    private String name;
-    private String bio;
-    private String phone;
+    // New Endpoint for uploading profile image
+    @PostMapping("/{id}/image")
+    public Profile uploadImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        String fileUrl = fileService.uploadFile(file);
+        
+        return profileRepository.findById(id).map(profile -> {
+            profile.setImageUrl(fileUrl);
+            return profileRepository.save(profile);
+        }).orElseThrow(() -> new RuntimeException("Profile not found!"));
+    }
+
+    // Fallback if uploading to 'me'
+    @PostMapping("/me/image")
+    public Profile uploadImageToMe(@RequestParam("file") MultipartFile file) {
+        String fileUrl = fileService.uploadFile(file);
+
+        Profile user = getOrCreateCurrentProfile();
+        user.setImageUrl(fileUrl);
+        return profileRepository.save(user);
+    }
+
+    private Profile getOrCreateCurrentProfile() {
+        return profileRepository.findById(1L)
+                .or(() -> profileRepository.findAll().stream().findFirst())
+                .orElseGet(() -> profileRepository.save(new Profile("Default", "No bio", "000")));
+    }
 }
