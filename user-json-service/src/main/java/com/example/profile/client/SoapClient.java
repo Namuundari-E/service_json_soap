@@ -32,7 +32,7 @@ public class SoapClient {
         HttpEntity<String> entity = new HttpEntity<>(xml, headers);
 
         try {
-            String response = new RestTemplate().postForObject(soapServiceUrl, entity, String.class);
+            String response = new RestTemplate().postForObject(soapServiceUrl.trim(), entity, String.class);
             return response != null && response.matches("(?s).*<[^>]*isValid[^>]*>\\s*true\\s*</[^>]*isValid>.*");
         } catch (Exception e) {
             return false;
